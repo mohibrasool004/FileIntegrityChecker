@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Monitoring Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>File Monitoring Dashboard</h1>
+
+    <label for="folderInput">Select a Folder to Monitor:</label>
+    <input type="file" id="folderInput" webkitdirectory multiple />
+
+    <div id="fileUpdates">
+        <h2>File Updates</h2>
+        <ul id="updatesList"></ul>
+    </div>
+
+    <div id="analytics">
+        <h2>Analytics</h2>
+        <p id="modifications">Modifications: 0</p>
+        <p id="creations">Files Created: 0</p>
+        <p id="deletions">Files Deleted: 0</p>
+    </div>
+
+    <script>
+        const socket = io();
+        let selectedFolder = null;
+
+        // Automatically start monitoring when the folder is selected
+        document.getElementById('folderInput').addEventListener('change', function(event) {
+            const folder = event.target.files[0].webkitRelativePath.split('/')[0];
+            selectedFolder = folder;
+            alert("Folder selected: " + folder);
+
+            // Automatically start monitoring the selected folder
+            fetch("/start_monitoring", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder: selectedFolder })
+            }).then(response => {
+                if (response.ok) {
+                    alert("Monitoring started for folder: " + selectedFolder);
+                } else {
+                    alert("Failed to start monitoring.");
+                }
+            });
+        });
+
+        // Handle real-time updates from server
+        socket.on('file_update', (data) => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `File: ${data.file} was ${data.action} at ${data.timestamp}. Change is: ${data.current}`;
+            document.getElementById('updatesList').appendChild(listItem);
+        });
+
+        // Fetch analytics data
+        setInterval(() => {
+            fetch("/analytics")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('modifications').textContent = "Modifications: " + data.modification_count;
+                    document.getElementById('creations').textContent = "Files Created: " + data.created_count;
+                    document.getElementById('deletions').textContent = "Files Deleted: " + data.deleted_count;
+                });
+        }, 1000);
+    </script>
+</body>
+</html>
